@@ -1,0 +1,58 @@
+{
+  "params": {
+    "out": "data",
+    "dominance": 0.9,
+    "val_frac": 0.1,
+    "max_per_queue": 1200,
+    "seed": 42
+  },
+  "clients": {
+    "brasil": {
+      "dominant_queue": "transfers",
+      "train": 1777,
+      "val": 197,
+      "train_by_queue": {
+        "transfers": 977,
+        "top_ups": 358,
+        "cards": 57,
+        "account_identity": 329,
+        "fx_fees": 56
+      }
+    },
+    "mexico": {
+      "dominant_queue": "cards",
+      "train": 1777,
+      "val": 197,
+      "train_by_queue": {
+        "cards": 979,
+        "account_identity": 339,
+        "top_ups": 353,
+        "fx_fees": 52,
+        "transfers": 54
+      }
+    },
+    "portugal": {
+      "dominant_queue": "fx_fees",
+      "train": 1777,
+      "val": 197,
+      "train_by_queue": {
+        "fx_fees": 970,
+        "account_identity": 342,
+        "top_ups": 356,
+        "cards": 56,
+        "transfers": 53
+      }
+    }
+  },
+  "test": {
+    "all": 3080,
+    "balanced": 1800,
+    "by_queue": {
+      "cards": 1280,
+      "fx_fees": 600,
+      "top_ups": 360,
+      "account_identity": 400,
+      "transfers": 440
+    }
+  }
+}

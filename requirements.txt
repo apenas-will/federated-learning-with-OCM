@@ -1,0 +1,11 @@
+# Laptop tooling: Flower CLI (flwr run), data preparation, evaluation notebook.
+# Versions match app/pyproject.toml and the SuperExec image.
+flwr==1.34.0
+torch==2.14.1
+transformers==5.19.0
+peft==0.21.2
+safetensors
+huggingface_hub
+datasets
+jupyterlab
+matplotlib

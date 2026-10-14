@@ -1,0 +1,23 @@
+# Namespace for the FederatedLearning resource and its ServerApp on the hub.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bank-fl
+---
+# Placements only see clusters of ClusterSets bound to their namespace.
+# `global` is the default set that contains every managed cluster.
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: bank-fl
+spec:
+  clusterSet: global
+---
+apiVersion: cluster.open-cluster-management.io/v1beta2
+kind: ManagedClusterSetBinding
+metadata:
+  name: global
+  namespace: open-cluster-management
+spec:
+  clusterSet: global

@@ -1,0 +1,28 @@
+# Which branch clusters get a Flower SuperNode (via the flower-addon).
+# Two criteria, as in the talk:
+#   - data locality: the cluster publishes the customer-messages ClusterClaim
+#     (a branch declares it holds the dataset; the data itself never moves)
+#   - resources: enough allocatable CPU and memory to fine-tune the model
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: branches-with-customer-data
+  namespace: open-cluster-management
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        claimSelector:
+          matchExpressions:
+            - key: customer-messages.bank.demo
+              operator: Exists
+        # cel-begin (40-flower-addon.sh drops this block if the OCM version cannot evaluate it)
+        celSelector:
+          celExpressions:
+            - 'int(managedCluster.status.allocatable["cpu"]) >= 2'
+        # cel-end
+  tolerations:
+    - key: cluster.open-cluster-management.io/unreachable
+      operator: Exists
+      tolerationSeconds: 300

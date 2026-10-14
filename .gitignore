@@ -1,0 +1,16 @@
+# Local tooling and caches
+.venv/
+bin/
+.upstream/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Downloaded / generated model files (re-created by `make image`)
+models/
+
+# Flower CLI state (config.toml and CA cert are generated per environment)
+.flwr/
+
+# Evaluation output (re-created by `make evaluate`)
+results/

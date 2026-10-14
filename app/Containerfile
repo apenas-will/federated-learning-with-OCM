@@ -1,0 +1,32 @@
+# SuperExec image for the bank queue router, used for both the ServerApp (hub)
+# and the ClientApps (branches) deployed by the federated-learning-controller.
+#
+# The image only carries dependencies and the frozen base model. The app code
+# itself is NOT baked in: `flwr run` ships it to the SuperLink as a Flower App
+# Bundle (FAB), and every SuperExec runs that bundle.
+#
+# Build context is the fp32 model directory (see infra/scripts/20-image.sh):
+#   podman build -f app/Containerfile -t <registry>/bank-queue-router:<tag> models/granite-4.0-350m-fp32
+FROM docker.io/flwr/superexec:1.34.0-py3.13-ubuntu24.04
+
+# CPU-only PyTorch by default (small image). With GPU on, 20-image.sh passes the
+# CUDA 12.6 or 13.0 index that matches the host driver.
+ARG TORCH_INDEX=https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir --index-url "$TORCH_INDEX" "torch==2.14.1" \
+ && pip install --no-cache-dir "transformers==5.19.0" "peft==0.21.2" safetensors
+
+# Base model (Apache-2.0): IBM Granite 4.0 350M, stored as fp32 so it is
+# memory-mapped instead of converted at load time. Every branch already has it,
+# so it never travels during training.
+COPY *.json *.safetensors *.jinja README.md /models/granite-4.0-350m-fp32/
+
+# NVIDIA_*: on nodes whose default runtime is nvidia (GPU branches, see
+# infra/scripts/10-clusters.sh) the container gets the GPU without any GPU
+# request in the pod spec. Elsewhere these variables have no effect.
+ENV BASE_MODEL_PATH=/models/granite-4.0-350m-fp32 \
+    HF_HUB_OFFLINE=1 \
+    FL_OUTPUT_DIR=/app/output \
+    NVIDIA_VISIBLE_DEVICES=all \
+    NVIDIA_DRIVER_CAPABILITIES=compute,utility
+
+ENTRYPOINT ["flower-superexec"]

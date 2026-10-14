@@ -1,0 +1,33 @@
+# The training request, created on the hub. The federated-learning-controller:
+#   - creates a Placement from spec.client.placement and stays in Waiting until
+#     at least minAvailableClients clusters match
+#   - deploys the SuperExec-ServerApp (aggregator) on the hub, next to the SuperLink
+#   - deploys a SuperExec-ClientApp to every selected branch through a
+#     ManifestWorkReplicaSet, then switches to Running
+# Training rounds are then started with `flwr run` (see scripts/demo.sh).
+apiVersion: federation-ai.open-cluster-management.io/v1alpha1
+kind: FederatedLearning
+metadata:
+  name: bank-queue-router
+  namespace: bank-fl
+spec:
+  framework: flower
+  server:
+    image: localhost:5001/bank-queue-router:1.0.0
+    minAvailableClients: 3
+  client:
+    image: localhost:5001/bank-queue-router:1.0.0
+    placement:
+      clusterSets:
+        - global
+      predicates:
+        - requiredClusterSelector:
+            # the branch runs a SuperNode (installed by the flower-addon) ...
+            labelSelector:
+              matchLabels:
+                feature.open-cluster-management.io/addon-flower-addon: available
+            # ... and declares that it holds the customer-messages dataset
+            claimSelector:
+              matchExpressions:
+                - key: customer-messages.bank.demo
+                  operator: Exists

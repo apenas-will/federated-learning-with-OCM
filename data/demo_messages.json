@@ -1,0 +1,27 @@
+{
+  "cards": [
+    "Some idiot stole my card.",
+    "Where do I order my card?",
+    "How can I withdraw money?"
+  ],
+  "transfers": [
+    "How does a transfer work?",
+    "Why did my transfer fail?",
+    "I have a pending transfer"
+  ],
+  "top_ups": [
+    "How do I use auto top up?",
+    "How do I verify a top-up?",
+    "top-up is slow to process"
+  ],
+  "fx_fees": [
+    "Is there an exchange fee?",
+    "Is a SWIFT transfer okay?",
+    "I want to return an item."
+  ],
+  "account_identity": [
+    "I need my funds verified.",
+    "How to change my address.",
+    "app does not recognize me"
+  ]
+}

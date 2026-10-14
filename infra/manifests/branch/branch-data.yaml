@@ -1,0 +1,83 @@
+# The branch's own dataset, served only inside its cluster.
+#
+# The JSONL files live on the branch cluster's node (/data/bank, copied there by
+# infra/scripts/60-branch-data.sh). The ClientApp pod deployed by the
+# federated-learning-controller has no volumes, so it reads the data through
+# this ClusterIP service; the NetworkPolicy lets only Flower pods in
+# `flower-addon` reach it. Nothing here is exposed outside the cluster.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bank-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: branch-data
+  namespace: bank-data
+  labels:
+    app: branch-data
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: branch-data
+  template:
+    metadata:
+      labels:
+        app: branch-data
+    spec:
+      containers:
+        - name: http
+          image: docker.io/library/python:3.13-alpine
+          imagePullPolicy: IfNotPresent
+          # Read-only static file server; its access log shows every read of the data.
+          command: ["python", "-m", "http.server", "8000", "--directory", "/data"]
+          ports:
+            - containerPort: 8000
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65534
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+          volumeMounts:
+            - name: data
+              mountPath: /data
+              readOnly: true
+      volumes:
+        - name: data
+          hostPath:
+            path: /data/bank
+            type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: branch-data
+  namespace: bank-data
+spec:
+  type: ClusterIP
+  selector:
+    app: branch-data
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: only-local-flower-clients
+  namespace: bank-data
+spec:
+  podSelector:
+    matchLabels:
+      app: branch-data
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: flower-addon
+      ports:
+        - port: 8000

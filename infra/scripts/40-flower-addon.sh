@@ -22,6 +22,11 @@ write_flwr_config
 info "CA certificate for the flwr CLI written to .flwr/ca.crt (connection 'ocm' in .flwr/config.toml)"
 
 log "Installing the flower-addon chart (Flower $FLOWER_VERSION)"
+# generate-certs.sh creates flower-system, which the chart also templates;
+# mark it as owned by this release so Helm adopts it instead of refusing.
+kc label namespace flower-system app.kubernetes.io/managed-by=Helm --overwrite >/dev/null
+kc annotate namespace flower-system meta.helm.sh/release-name=flower-addon \
+  meta.helm.sh/release-namespace=default --overwrite >/dev/null
 helm upgrade --install flower-addon "$CHART" --kube-context "$HUB_CTX" \
   --set tls.enabled=true \
   --set deploymentConfig.superlinkAddress="$HUB_IP" \

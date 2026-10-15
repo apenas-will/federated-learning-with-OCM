@@ -43,8 +43,9 @@ begin "publish data claims (expect Running)"
 infra/scripts/61-publish-claims.sh
 wait_for 900 "Running phase" sh -c "kubectl --context $HUB_CTX -n $FL_NAMESPACE get federatedlearning $FL_NAME -o jsonpath='{.status.phase}' | grep -q Running"
 for b in $BRANCHES; do
+  # The controller labels the ClientApp pods but not their Deployment: wait on it by name.
   wait_for 600 "ClientApp ready in $b" kubectl --context "kind-$b" -n flower-addon wait --for=condition=Available \
-    deploy -l app.kubernetes.io/component=superexec-clientapp --timeout=10s
+    "deploy/$FL_NAME-clientapp" --timeout=10s
 done
 kc -n "$FL_NAMESPACE" wait --for=condition=Available deploy -l app.kubernetes.io/component=superexec-serverapp --timeout=300s
 demo/status.sh > "$R/cluster/2-running.txt" 2>&1

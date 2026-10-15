@@ -14,3 +14,4 @@ models/
 
 # Evaluation output (re-created by `make evaluate`)
 results/
+run-all.log

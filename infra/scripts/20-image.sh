@@ -6,6 +6,9 @@ source "$(dirname "$0")/lib.sh"
 
 log "Preparing the base model (fp32)"
 "$ROOT/.venv/bin/python" "$ROOT/infra/scripts/prepare_model.py"
+# save_pretrained can write model.safetensors as 0600; COPY keeps the mode and
+# the SuperExec runs as the non-root user "app", so make the model world-readable.
+chmod -R a+rX "$ROOT/models/granite-4.0-350m-fp32"
 
 log "Building $APP_IMAGE"
 # CUDA PyTorch when the branch clusters get the GPU, CPU-only otherwise.

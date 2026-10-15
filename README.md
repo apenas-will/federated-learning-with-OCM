@@ -90,6 +90,95 @@ Use the arm64 binaries on an arm64 server. If you run `flwr` or `kubectl`
 from another machine, tunnel port 30093 (Flower Control API) and the kind API
 servers, or simply run everything on the server.
 
+### Reference run: exact commands (Ubuntu 24.04, RTX 4000 Ada)
+
+These are the exact commands used for a verified run on Ubuntu 24.04.4 LTS
+(x86_64, 28 CPUs, 31 GiB RAM), NVIDIA RTX 4000 Ada Generation (20 GB),
+driver 580.178.04 (CUDA 13.0), starting from a machine with no Docker, kind,
+kubectl, helm or uv.
+
+CLI tools, installed into `~/.local/bin` (no sudo needed):
+
+```bash
+mkdir -p ~/.local/bin && cd ~/.local/bin
+curl -sSLo kind https://kind.sigs.k8s.io/dl/v0.33.0/kind-linux-amd64 && chmod +x kind
+curl -sSLo kubectl "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x kubectl
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | HELM_INSTALL_DIR=$HOME/.local/bin USE_SUDO=false bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# Result: kind v0.33.0, kubectl v1.37.1, helm v3.22.0, uv 0.13.1
+```
+
+Docker Engine, NVIDIA Container Toolkit, inotify limits and GPU host setup (sudo):
+
+```bash
+# Docker Engine (official repository)
+sudo apt-get update && sudo apt-get install -y ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu noble stable" | sudo tee /etc/apt/sources.list.d/docker.list
+# NVIDIA Container Toolkit
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -sL https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+sudo apt-get update && sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin nvidia-container-toolkit
+sudo usermod -aG docker $USER
+# inotify limits, persistent across reboots
+printf 'fs.inotify.max_user_watches=524288\nfs.inotify.max_user_instances=512\n' | sudo tee /etc/sysctl.d/99-kind.conf && sudo sysctl --system
+# Let kind nodes receive the GPU (prints "GPU 0: NVIDIA RTX 4000 Ada ...")
+cd ~/Documents/federated-learning-with-OCM && sudo make gpu-host
+```
+
+Check (result: Docker 29.9.1, default runtime `nvidia`):
+
+```bash
+sg docker -c 'docker info --format "{{.ServerVersion}} {{.DefaultRuntime}}"'
+grep accept-nvidia /etc/nvidia-container-runtime/config.toml
+sysctl fs.inotify.max_user_watches fs.inotify.max_user_instances
+```
+
+Full run. `sg docker` picks up the new `docker` group without logging out
+again; after a new login, plain `make run-all` is the same:
+
+```bash
+cd ~/Documents/federated-learning-with-OCM
+sg docker -c 'make run-all' > run-all.log 2>&1   # follow with: tail -f run-all.log
+cat results/summary.md
+```
+
+The first attempts on this machine stopped on three bugs, fixed in the scripts
+since then: Helm refusing the `flower-system` namespace created by the
+upstream certificate script (`40-flower-addon.sh`), `run-all.sh` waiting on a
+label that only the ClientApp pods carry, and the fp32 model being written as
+`0600` and unreadable by the non-root SuperExec user (`20-image.sh`). With the
+fixes, `make run-all` completed (exit code 0). From the first `make run-all`
+to `results/summary.md`, including the three failed attempts, took about
+66 minutes, mostly first-time downloads and the CUDA image build.
+
+`results/timings.tsv` of the successful run. Setup took seconds because the
+earlier attempts had already done it:
+
+| Phase | Seconds |
+|---|---|
+| setup (00..60, already done) | 39 |
+| reset + FederatedLearning → Waiting | 13 |
+| publish data claims → Running | 72 |
+| federated training (`flwr run`, 5 rounds) | 122 |
+| brasil-only baseline | 11 |
+| evaluation | 32 |
+
+Placement selected `brasil,mexico,portugal`; chile was left out. The GPU test
+in `20-image.sh` reported `cuda True NVIDIA RTX 4000 Ada Generation` in all
+three branches, and each branch sent a 5.69 MB LoRA update per round.
+Accuracy on the balanced test set (1800 messages), from `results/summary.md`:
+
+| Queue | base | brasil-only | federated |
+|---|---|---|---|
+| cards | 100% | 75% | 63% |
+| transfers | 0% | 97% | 82% |
+| top_ups | 0% | 81% | 91% |
+| fx_fees | 0% | 23% | 88% |
+| account_identity | 1% | 86% | 97% |
+| **overall** | **20%** | **72%** | **84%** |
+
 ### On a Mac
 
 ```bash
